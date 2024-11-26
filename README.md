@@ -9,6 +9,7 @@ This PowerShell script recursively generates a Markdown file listing the Active 
 
 - Windows PowerShell
 - Active Directory Module for Windows PowerShell
+- MarkMap Extention for VSCode - Extention id: gera2ld.markmap-vscode - https://markmap.js.org/
 
 ## Usage
 
