@@ -21,15 +21,13 @@ $Chunks = $Identifiers | ForEach-Object -Begin { $chunk = @() } `
                         -Process { $chunk += $_; if ($chunk.Count -ge $ChunkSize) { $chunk; $chunk = @() } } `
                         -End { if ($chunk) { $chunk } }
 
-# Process each chunk in parallel
-$Results = $Chunks | ForEach-Object -Parallel {
-    Import-Module ActiveDirectory # Import module in the parallel runspace
+# Process each chunk sequentially
+foreach ($Chunk in $Chunks) {
+    # Prepare an array for results in this chunk
+    $ChunkResults = @()
+    $ChunkNotFound = @()
 
-    # Prepare an array for results in this thread
-    $ThreadResults = @()
-    $ThreadNotFound = @()
-
-    foreach ($Identifier in $_) {
+    foreach ($Identifier in $Chunk) {
         try {
             # Determine whether input is Email, EmployeeID, or SamAccountName
             if ($Identifier -match '@') {
@@ -43,24 +41,25 @@ $Results = $Chunks | ForEach-Object -Parallel {
             # Process the user if found
             if ($User -ne $null) {
                 # Add to results
-                $ThreadResults += [PSCustomObject]@{
+                $ChunkResults += [PSCustomObject]@{
                     SamAccountName = $User.SamAccountName
                     DisplayName    = $User.DisplayName
                     Department     = $User.Department
                 }
             } else {
                 # Add to "not found" list
-                $ThreadNotFound += $Identifier
+                $ChunkNotFound += $Identifier
             }
         } catch {
             # Handle errors and add to "not found" list
-            $ThreadNotFound += $Identifier
+            $ChunkNotFound += $Identifier
         }
     }
 
-    # Return results and not-found users
-    @($ThreadResults, $ThreadNotFound)
-} -ThrottleLimit 4 # Adjust throttle limit based on resources
+    # Aggregate results from this chunk
+    $Results += $ChunkResults
+    $NotFoundUsers += $ChunkNotFound
+}
 
 # Aggregate results from all threads
 foreach ($ResultSet in $Results) {
